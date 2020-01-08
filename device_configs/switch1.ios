@@ -1,0 +1,285 @@
+no service pad
+no service dhcp
+no ip bootp server
+no ip source-route
+no ip gratuitous-arps
+service timestamps debug datetime localtime
+service timestamps log datetime localtime
+service password-encryption
+service compress-config
+service call-home
+no platform punt-keepalive disable-kernel-core
+!
+hostname switch1
+!
+!
+vrf definition Mgmt-vrf
+ !
+ address-family ipv4
+ exit-address-family
+ !
+ address-family ipv6
+ exit-address-family
+!
+no logging console
+enable secret 0 password
+!
+!
+!
+!
+aaa new-model 
+!
+!
+aaa authentication login default local-case 
+aaa authorization exec default local
+aaa local authentication attempts max-fail 10
+!
+aaa session-id common
+clock timezone EET 2 0
+clock summer-time EET recurring last Sun Mar 3:00 last Sun Oct 4:00
+!switch 1 provision c9200l-24p-4x
+!
+!
+!
+!
+vtp mode transparent
+device-sensor accounting
+device-sensor notify all-changes
+!
+!
+!
+!
+!
+ip arp entry learn 10240
+!
+no ip domain lookup
+ip domain name domain.lt
+!
+!
+!
+login on-success log
+login on-failure log
+login block-for 120 attempts 5 within 60
+call-home
+ ! If contact email address in call-home is configured as sch-smart-licensing@cisco.com
+ ! the email address configured in Cisco Smart License Portal will be used as contact email address to send SCH notifications.
+ contact-email-addr sch-smart-licensing@cisco.com
+ profile "CiscoTAC-1"
+  active
+  destination transport-method http
+  no destination transport-method email
+device-tracking tracking auto-source override
+device-tracking tracking retry-interval 60
+!
+license boot level network-essentials addon dna-essentials
+!
+!
+diagnostic bootup level minimal
+!
+spanning-tree mode rapid-pvst
+spanning-tree extend system-id
+!
+errdisable recovery cause udld
+errdisable recovery cause bpduguard
+errdisable recovery cause security-violation
+errdisable recovery cause channel-misconfig
+errdisable recovery cause pagp-flap
+errdisable recovery cause dtp-flap
+errdisable recovery cause link-flap
+errdisable recovery cause sfp-config-mismatch
+errdisable recovery cause gbic-invalid
+errdisable recovery cause l2ptguard
+errdisable recovery cause psecure-violation
+errdisable recovery cause port-mode-failure
+errdisable recovery cause dhcp-rate-limit
+errdisable recovery cause pppoe-ia-rate-limit
+errdisable recovery cause mac-limit
+errdisable recovery cause vmps
+errdisable recovery cause storm-control
+errdisable recovery cause inline-power
+errdisable recovery cause arp-inspection
+errdisable recovery cause loopback
+errdisable recovery cause psp
+errdisable recovery interval 30
+!
+username admin privilige 15 secret asfdcvaghcnjd
+!
+redundancy
+ mode sso
+!
+vlan 422
+ name MGMT
+!
+vlan 1111
+ name VLAN-1111
+lldp run
+!
+!
+class-map match-any system-cpp-police-topology-control
+  description Topology control
+class-map match-any system-cpp-police-sw-forward
+  description Sw forwarding, L2 LVX data, LOGGING
+class-map match-any system-cpp-default
+  description Inter FED, EWLC control, EWLC data
+class-map match-any system-cpp-police-sys-data
+  description Learning cache ovfl, High Rate App, Exception, EGR Exception, NFL SAMPLED DATA, RPF Failed
+class-map match-any system-cpp-police-punt-webauth
+  description Punt Webauth
+class-map match-any system-cpp-police-l2lvx-control
+  description L2 LVX control packets
+class-map match-any system-cpp-police-forus
+  description Forus Address resolution and Forus traffic
+class-map match-any system-cpp-police-multicast-end-station
+  description MCAST END STATION
+class-map match-any system-cpp-police-multicast
+  description Transit Traffic and MCAST Data
+class-map match-any system-cpp-police-l2-control
+  description L2 control
+class-map match-any system-cpp-police-dot1x-auth
+  description DOT1X Auth
+class-map match-any system-cpp-police-data
+  description ICMP redirect, ICMP_GEN and BROADCAST
+class-map match-any system-cpp-police-stackwise-virt-control
+  description Stackwise Virtual
+class-map match-any non-client-nrt-class
+class-map match-any system-cpp-police-routing-control
+  description Routing control and Low Latency
+class-map match-any system-cpp-police-protocol-snooping
+  description Protocol snooping
+class-map match-any system-cpp-police-dhcp-snooping
+  description DHCP snooping
+class-map match-any system-cpp-police-system-critical
+  description System Critical and Gold Pkt
+!
+policy-map system-cpp-policy
+!
+!
+!
+!
+!
+!
+interface GigabitEthernet0/0
+ vrf forwarding Mgmt-vrf
+ no ip address
+ shutdown
+ negotiation auto
+
+interface Port-channel1
+ description UPLINK-PORT-CHANNEL 
+ switchport trunk allowed vlan all
+ switchport mode trunk
+interface TenGigabitEthernet1/1/3
+ channel-group 1 force mode active
+interface TenGigabitEthernet1/1/4
+ channel-group 1 force mode active
+!
+interface Gi0/49
+ switchport mode trunk
+ switchport trunk allowed vlan all
+!
+interface Gi0/52
+ switchport mode trunk
+
+interface Vlan422
+ description Management SVI
+ ip address 10.0.0.1 255.255.255.0
+!
+logging buffered 128000 informational
+archive
+  log config
+  logging enable
+  logging size 200
+  hidekeys
+  notify syslog
+!
+ip default-gateway 
+ip forward-protocol nd
+no ip http server
+no ip http secure-server
+ip route 0.0.0.0 0.0.0.0  name MGMT-default-route
+ip ssh version 2
+ip ssh time-out 10
+ip ssh logging events
+ip ssh keypair MGMT
+ip scp server enable
+!
+!
+ip access-list standard SNMP-ACL
+  permit 10.10.20.0 0.0.0.255 log
+  deny any log
+ip access-list standard MGMT
+  permit 10.10.20.0 0.0.0.255 log
+  deny any log
+!
+logging trap debugging
+logging origin-id hostname
+logging host 1.1.1.1
+logging host 2.2.2.2
+snmp-server location 
+snmp-server contact email@email.com
+snmp ifmib ifindex persist
+snmp-server enable traps snmp authentication linkdown linkup coldstart warmstart
+snmp-server enable traps tty
+snmp-server enable traps cpu threshold
+snmp-server enable traps flash insertion
+snmp-server enable traps flash removal
+snmp ifmib ifindex persist
+!
+!
+!
+control-plane
+ service-policy input system-cpp-policy
+!
+banner exec ^
+   Place for your banner
+^
+
+line con 0 
+  exec-timeout 15
+  no privilege level 15
+  stopbits 1
+line aux 0
+ stopbits 1
+line vty 0 4
+  exec-timeout 300 0
+  login authentication default
+  transport input ssh
+  access-class MGMT in
+line vty 5 15
+  exec-timeout 300 0
+  login authentication default
+  transport input ssh
+  access-class MGMT in
+
+crypto key generate rsa label MGMT modulus 2048
+
+!
+ntp server 1.1.1.1 prefer 
+ntp server 2.2.2.2
+!
+mac address-table notification change interval 0
+mac address-table notification change
+wsma agent exec
+ profile httplistener
+ profile httpslistener
+!
+wsma agent config
+ profile httplistener
+ profile httpslistener
+!
+wsma agent filesys
+ profile httplistener
+ profile httpslistener
+!
+wsma agent notify
+ profile httplistener
+ profile httpslistener
+!
+!
+wsma profile listener httplistener
+ transport http
+!
+wsma profile listener httpslistener
+ transport https
+!
+end

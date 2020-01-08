@@ -1,0 +1,320 @@
+no service pad
+no service dhcp
+no ip bootp server
+no ip source-route
+no ip gratuitous-arps
+service timestamps debug datetime localtime
+service timestamps log datetime localtime
+service password-encryption
+service compress-config
+service call-home
+no platform punt-keepalive disable-kernel-core
+!
+hostname {{ hostname }}
+!
+!
+vrf definition Mgmt-vrf
+ !
+ address-family ipv4
+ exit-address-family
+ !
+ address-family ipv6
+ exit-address-family
+!
+no logging console
+enable secret 0 {{ enable }}
+!
+!
+!
+!
+aaa new-model 
+!
+!
+aaa authentication login default local-case 
+aaa authorization exec default local
+aaa local authentication attempts max-fail 10
+!
+aaa session-id common
+clock timezone EET 2 0
+clock summer-time EET recurring last Sun Mar 3:00 last Sun Oct 4:00
+!
+!
+!
+!
+vtp mode transparent
+device-sensor accounting
+device-sensor notify all-changes
+!
+!
+!
+!
+!
+ip arp entry learn 10240
+!
+no ip domain lookup
+ip domain name {{ domain }}
+!
+!
+!
+login on-success log
+login on-failure log
+login block-for 120 attempts 5 within 60
+call-home
+ ! If contact email address in call-home is configured as sch-smart-licensing@cisco.com
+ ! the email address configured in Cisco Smart License Portal will be used as contact email address to send SCH notifications.
+ contact-email-addr sch-smart-licensing@cisco.com
+ profile "CiscoTAC-1"
+  active
+  destination transport-method http
+  no destination transport-method email
+device-tracking tracking auto-source override
+device-tracking tracking retry-interval 60
+!
+license boot level network-essentials addon dna-essentials
+!
+!
+diagnostic bootup level minimal
+!
+spanning-tree mode rapid-pvst
+spanning-tree extend system-id
+!
+errdisable recovery cause udld
+errdisable recovery cause bpduguard
+errdisable recovery cause security-violation
+errdisable recovery cause channel-misconfig
+errdisable recovery cause pagp-flap
+errdisable recovery cause dtp-flap
+errdisable recovery cause link-flap
+errdisable recovery cause sfp-config-mismatch
+errdisable recovery cause gbic-invalid
+errdisable recovery cause l2ptguard
+errdisable recovery cause psecure-violation
+errdisable recovery cause port-mode-failure
+errdisable recovery cause dhcp-rate-limit
+errdisable recovery cause pppoe-ia-rate-limit
+errdisable recovery cause mac-limit
+errdisable recovery cause vmps
+errdisable recovery cause storm-control
+errdisable recovery cause inline-power
+errdisable recovery cause arp-inspection
+errdisable recovery cause loopback
+errdisable recovery cause psp
+errdisable recovery interval 30
+!
+{% for user in users %}
+username {{ user.username }} privilige {{ user.priv | default('15')}} secret {{ user.pass }}
+{% endfor %}
+!
+redundancy
+ mode sso
+!
+vlan {{ mgmt.inline.vlan }}
+ name MGMT
+{% for vlan in vlans %}
+!
+vlan {{ vlan.id }}
+ name {{ vlan.name }}
+{% endfor %}
+lldp run
+!
+!
+class-map match-any system-cpp-police-topology-control
+  description Topology control
+class-map match-any system-cpp-police-sw-forward
+  description Sw forwarding, L2 LVX data, LOGGING
+class-map match-any system-cpp-default
+  description Inter FED, EWLC control, EWLC data
+class-map match-any system-cpp-police-sys-data
+  description Learning cache ovfl, High Rate App, Exception, EGR Exception, NFL SAMPLED DATA, RPF Failed
+class-map match-any system-cpp-police-punt-webauth
+  description Punt Webauth
+class-map match-any system-cpp-police-l2lvx-control
+  description L2 LVX control packets
+class-map match-any system-cpp-police-forus
+  description Forus Address resolution and Forus traffic
+class-map match-any system-cpp-police-multicast-end-station
+  description MCAST END STATION
+class-map match-any system-cpp-police-multicast
+  description Transit Traffic and MCAST Data
+class-map match-any system-cpp-police-l2-control
+  description L2 control
+class-map match-any system-cpp-police-dot1x-auth
+  description DOT1X Auth
+class-map match-any system-cpp-police-data
+  description ICMP redirect, ICMP_GEN and BROADCAST
+class-map match-any system-cpp-police-stackwise-virt-control
+  description Stackwise Virtual
+class-map match-any non-client-nrt-class
+class-map match-any system-cpp-police-routing-control
+  description Routing control and Low Latency
+class-map match-any system-cpp-police-protocol-snooping
+  description Protocol snooping
+class-map match-any system-cpp-police-dhcp-snooping
+  description DHCP snooping
+class-map match-any system-cpp-police-system-critical
+  description System Critical and Gold Pkt
+!
+policy-map system-cpp-policy
+!
+!
+!
+!
+!
+!
+interface GigabitEthernet0/0
+ vrf forwarding Mgmt-vrf
+ no ip address
+ shutdown
+ negotiation auto
+
+{% if interfaces.port_channels is defined %}
+  {% for po in interfaces.port_channels %}
+interface Port-channel{{ po.id }}
+    {% if po.description is defined %}
+ description {{ po.description }} 
+    {% endif %}
+ switchport trunk allowed vlan all
+ switchport mode trunk
+    {% for memeber in po.members %}
+interface {{ memeber }}
+ channel-group {{ po.id }} force mode active
+    {% endfor %}
+  {% endfor %}
+{% endif %}
+{% if interfaces.trunks is defined %}
+  {% for trunk in interfaces.trunks %}
+!
+interface {{ trunk.name }}
+ switchport mode trunk
+    {% if trunk.vlans is defined %}
+ switchport trunk allowed vlan {{ trunk.vlans }}
+    {% endif %}
+  {% endfor %}
+{% endif %}
+
+interface Vlan{{ mgmt.inline.vlan }}
+ description Management SVI
+ ip address {{ mgmt.inline.ip }} {{ mgmt.inline.sm }}
+!
+logging buffered 128000 informational
+archive
+  log config
+  logging enable
+  logging size 200
+  hidekeys
+  notify syslog
+!
+ip default-gateway 
+ip forward-protocol nd
+no ip http server
+no ip http secure-server
+ip route 0.0.0.0 0.0.0.0 {{ mgmt.gw }} name MGMT-default-route
+ip ssh version 2
+ip ssh time-out 10
+ip ssh logging events
+ip ssh keypair MGMT
+ip scp server enable
+!
+!
+ip access-list standard SNMP-ACL
+  permit 10.10.20.0 0.0.0.255 log
+  deny any log
+ip access-list standard MGMT-ACL
+  permit 10.10.20.0 0.0.0.255 log
+  deny any log
+!
+logging trap debugging
+logging origin-id hostname
+{% if syslog_servers is defined %}
+  {% for syslog_server in syslog_servers %}
+logging host {{ syslog_server }}
+  {% endfor %}
+{% endif %}
+{% if snmp is defined %}
+  {% for community in snmp.communities %}
+snmp-server community {{ community }} RO SNMP-ACL
+  {% endfor %}
+snmp-server location {{ snmp.location }}
+snmp-server contact {{ snmp.contact }}
+snmp ifmib ifindex persist
+snmp-server enable traps snmp authentication linkdown linkup coldstart warmstart
+snmp-server enable traps tty
+snmp-server enable traps cpu threshold
+snmp-server enable traps flash insertion
+snmp-server enable traps flash removal
+{#
+snmp-server user snmpuser GROUPNAME v3 auth md5 PASSWORD
+snmp-server group snmpuser v3 auth
+  {% for server in snmp.communities %}
+snmp-server host {{ server }} informs version 3 auth snmpuser
+snmp-server host {{ server }} version 3 auth snmpuser
+  {% endfor %}
+#}
+snmp ifmib ifindex persist
+{% endif %}
+!
+!
+!
+control-plane
+ service-policy input system-cpp-policy
+!
+banner exec ^
+   Place for your banner
+^
+
+line con 0 
+  exec-timeout 15
+  no privilege level 15
+  stopbits 1
+line aux 0
+ stopbits 1
+line vty 0 4
+  exec-timeout 300 0
+  login authentication default
+  transport input ssh
+  access-class MGMT in
+line vty 5 15
+  exec-timeout 300 0
+  login authentication default
+  transport input ssh
+  access-class MGMT in
+
+{% if initial is defined %}
+crypto key generate rsa label MGMT modulus 2048
+{% endif %}
+
+!
+{% if ntp_servers is defined %}
+  {% for ntp_server in ntp_servers %}
+ntp server {{ ntp_server }}{% if loop.index == 1 %} prefer 
+      {% endif %}
+  {% endfor %}
+{% endif %}
+
+!
+mac address-table notification change interval 0
+mac address-table notification change
+wsma agent exec
+ profile httplistener
+ profile httpslistener
+!
+wsma agent config
+ profile httplistener
+ profile httpslistener
+!
+wsma agent filesys
+ profile httplistener
+ profile httpslistener
+!
+wsma agent notify
+ profile httplistener
+ profile httpslistener
+!
+!
+wsma profile listener httplistener
+ transport http
+!
+wsma profile listener httpslistener
+ transport https
+!
+end

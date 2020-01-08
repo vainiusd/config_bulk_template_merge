@@ -1,0 +1,39 @@
+initial: True
+hostname: switch1
+domain: domain.lt
+mgmt:
+  inline:
+    ip: 10.0.0.1
+    sm: 255.255.255.0
+    vlan: 422
+    gw: 10.0.0.254
+enable: password
+users:
+  - { username: admin, priv: 15, pass: asfdcvaghcnjd }
+snmp:
+  communities:
+    - asdmlasmkla 
+  location: ""
+  contact: email@email.com
+  servers:
+    - 1.1.1.1
+    - 2.2.2.2
+syslog_servers:
+  - 1.1.1.1
+  - 2.2.2.2
+# First NTP server is prefered
+ntp_servers:
+  - 1.1.1.1
+  - 2.2.2.2
+interfaces:
+  trunks:
+    - name: "Gi0/49"
+      vlans: "all"
+    - name: "Gi0/52"
+  port_channels:
+    - id: 1
+      members: [TenGigabitEthernet1/1/3, TenGigabitEthernet1/1/4]
+      description: UPLINK-PORT-CHANNEL
+vlans:
+  - id: 1111
+    name: VLAN-1111
